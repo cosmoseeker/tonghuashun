@@ -1,17 +1,18 @@
 package org.qianyuxiang.service.impl;
 
 import org.qianyuxiang.model.IdentityEntity;
+import org.qianyuxiang.repositry.IndicatorDao;
 import org.qianyuxiang.service.QueryService;
 
-import java.io.*;
-import java.math.BigDecimal;
+import javax.annotation.Resource;
 import java.util.*;
 
 /**
  * 基于文件的实现版本
  */
-public class FileQueryServiceImpl implements QueryService {
-    private String rootDir = "E:\\idea\\tonghuashun\\src\\main\\resources\\";
+public class QueryServiceImpl implements QueryService {
+    @Resource
+    private IndicatorDao indicatorDao;
     private final Map<String, List<IdentityEntity>> cache = new WeakHashMap<>();
 
     /**
@@ -26,9 +27,7 @@ public class FileQueryServiceImpl implements QueryService {
     @Override
     public List<IdentityEntity> query(String volume, String indicator, boolean ascOrder, Integer limit) {
         //volume期数对应文件夹,indicator指标对应文件
-        File indicatorFile = new File(rootDir + volume, indicator);
-        //不存在时直接返回
-        if (!indicatorFile.exists()) {
+        if (indicatorDao.exist(volume, indicator)) {
             return Collections.emptyList();
         }
 
@@ -37,9 +36,8 @@ public class FileQueryServiceImpl implements QueryService {
         List<IdentityEntity> candidateResult;
         if (cache.containsKey(unionKey)) {
             candidateResult = readFromCache(cache.get(unionKey), ascOrder, limit);
-
         } else {
-            candidateResult= readFromFile(indicatorFile, unionKey, ascOrder, limit);
+            candidateResult = readFromFile(indicatorDao.query(volume, indicator), unionKey, ascOrder, limit);
         }
         if (ascOrder) {
             candidateResult.sort(Comparator.comparing(IdentityEntity::getValue));
@@ -70,31 +68,18 @@ public class FileQueryServiceImpl implements QueryService {
     /**
      * 从列文件中获取
      *
-     * @param indicatorFile
+     * @param identityEntities
      * @param unionKey
      * @param ascOrder
      * @param limit
      * @return
      */
-    private List<IdentityEntity> readFromFile(File indicatorFile, String unionKey, boolean ascOrder, Integer limit) {
-        List<IdentityEntity> indicatorCache = new ArrayList<>();
+    private List<IdentityEntity> readFromFile(List<IdentityEntity> identityEntities, String unionKey, boolean ascOrder, Integer limit) {
         Queue<IdentityEntity> result = getCandidateResult(ascOrder, limit);
-
-        try (BufferedReader br = new BufferedReader(new FileReader(indicatorFile))) {
-            String str;
-            while ((str = br.readLine()) != null && str.length() > 0) {
-                //一个具体的实体指标
-                String[] entityIndicator = str.split(",");
-                IdentityEntity entity = new IdentityEntity();
-                entity.setIdentity(entityIndicator[0]);
-                entity.setValue(new BigDecimal(entityIndicator[1]));
-                indicatorCache.add(entity);
-                addResult(result, entity, ascOrder, limit);
-            }
-            cache.put(unionKey, indicatorCache);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
+        for (IdentityEntity identityEntity : identityEntities) {
+            addResult(result, identityEntity, ascOrder, limit);
         }
+        cache.put(unionKey, identityEntities);
         return new ArrayList<>(result);
     }
 

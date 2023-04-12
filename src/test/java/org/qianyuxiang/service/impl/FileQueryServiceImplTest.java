@@ -4,7 +4,6 @@ import com.github.noconnor.junitperf.JUnitPerfInterceptor;
 import com.github.noconnor.junitperf.JUnitPerfReportingConfig;
 import com.github.noconnor.junitperf.JUnitPerfTest;
 import com.github.noconnor.junitperf.JUnitPerfTestActiveConfig;
-import com.github.noconnor.junitperf.reporting.providers.ConsoleReportGenerator;
 import com.github.noconnor.junitperf.reporting.providers.HtmlReportGenerator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -18,7 +17,7 @@ import static java.lang.System.getProperty;
 
 @ExtendWith({JUnitPerfInterceptor.class})
 public class FileQueryServiceImplTest {
-    public FileQueryServiceImpl fileQueryServiceImpl;
+    public QueryServiceImpl fileQueryServiceImpl;
 
     @JUnitPerfTestActiveConfig
     private final static JUnitPerfReportingConfig PERF_CONFIG = JUnitPerfReportingConfig.builder()
@@ -27,7 +26,7 @@ public class FileQueryServiceImplTest {
 
     @BeforeEach
     public void setUp() {
-        fileQueryServiceImpl = new FileQueryServiceImpl();
+        fileQueryServiceImpl = new QueryServiceImpl();
     }
 
     @Test
