@@ -2,42 +2,43 @@ package org.qianyuxiang.service.impl;
 
 import org.qianyuxiang.model.IdentityEntity;
 import org.qianyuxiang.repositry.IndicatorDao;
-import org.qianyuxiang.service.QueryService;
+import org.qianyuxiang.service.IndicatorService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
+import org.springframework.util.ConcurrentReferenceHashMap;
 
 import javax.annotation.Resource;
+import java.math.BigDecimal;
 import java.util.*;
 
 /**
  * 基于文件的实现版本
  */
-public class QueryServiceImpl implements QueryService {
+@Service
+public class IndicatorServiceImpl implements IndicatorService {
+    private Logger logger = LoggerFactory.getLogger(IndicatorServiceImpl.class);
     @Resource
     private IndicatorDao indicatorDao;
-    private final Map<String, List<IdentityEntity>> cache = new WeakHashMap<>();
+    //确保缓存自动回收，缓存本身只是为了提效
+    private final Map<String, List<IdentityEntity>> cache = new ConcurrentReferenceHashMap<>(16, ConcurrentReferenceHashMap.ReferenceType.SOFT);
 
-    /**
-     * 实现一个类似于列式存储的基于文件的指标查询排序服务
-     *
-     * @param volume    期数
-     * @param indicator 指标
-     * @param ascOrder  是否升序，否则降序
-     * @param limit     需要的数据大小
-     * @return 对应的指标实体列表
-     */
     @Override
     public List<IdentityEntity> query(String volume, String indicator, boolean ascOrder, Integer limit) {
         //volume期数对应文件夹,indicator指标对应文件
-        if (indicatorDao.exist(volume, indicator)) {
+        if (!indicatorDao.exist(volume, indicator)) {
             return Collections.emptyList();
         }
 
         //文件读取
-        String unionKey = volume + indicator;
+        String unionKey = getCacheKey(volume, indicator);
         List<IdentityEntity> candidateResult;
         if (cache.containsKey(unionKey)) {
+            logger.info("readFromCache");
             candidateResult = readFromCache(cache.get(unionKey), ascOrder, limit);
         } else {
-            candidateResult = readFromFile(indicatorDao.query(volume, indicator), unionKey, ascOrder, limit);
+            logger.info("readFromData");
+            candidateResult = readFromData(indicatorDao.query(volume, indicator), unionKey, ascOrder, limit);
         }
         if (ascOrder) {
             candidateResult.sort(Comparator.comparing(IdentityEntity::getValue));
@@ -45,6 +46,26 @@ public class QueryServiceImpl implements QueryService {
             candidateResult.sort((a, b) -> b.getValue().compareTo(a.getValue()));
         }
         return candidateResult;
+    }
+
+    @Override
+    public boolean update(String volume, String indicator, String identity, BigDecimal value) {
+        //如果不存在，说明需要新建
+        if (!indicatorDao.exist(volume, indicator)) {
+            indicatorDao.create(volume, indicator, identity, value);
+        }
+        //在已有期的指标中更新
+        else {
+            indicatorDao.insert(volume, indicator, identity, value);
+            //删除缓存，下次访问时重新加载
+            String cacheKey = getCacheKey(volume, indicator);
+            cache.remove(cacheKey);
+        }
+        return true;
+    }
+
+    private static String getCacheKey(String volume, String indicator) {
+        return volume + indicator;
     }
 
     /**
@@ -74,7 +95,7 @@ public class QueryServiceImpl implements QueryService {
      * @param limit
      * @return
      */
-    private List<IdentityEntity> readFromFile(List<IdentityEntity> identityEntities, String unionKey, boolean ascOrder, Integer limit) {
+    private List<IdentityEntity> readFromData(List<IdentityEntity> identityEntities, String unionKey, boolean ascOrder, Integer limit) {
         Queue<IdentityEntity> result = getCandidateResult(ascOrder, limit);
         for (IdentityEntity identityEntity : identityEntities) {
             addResult(result, identityEntity, ascOrder, limit);
@@ -113,5 +134,9 @@ public class QueryServiceImpl implements QueryService {
                 }
             }
         }
+    }
+
+    public void setIndicatorDao(IndicatorDao indicatorDao) {
+        this.indicatorDao = indicatorDao;
     }
 }

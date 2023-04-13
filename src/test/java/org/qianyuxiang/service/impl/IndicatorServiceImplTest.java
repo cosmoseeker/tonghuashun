@@ -1,5 +1,7 @@
 package org.qianyuxiang.service.impl;
 
+import com.alibaba.fastjson2.JSON;
+import com.alibaba.fastjson2.JSONWriter;
 import com.github.noconnor.junitperf.JUnitPerfInterceptor;
 import com.github.noconnor.junitperf.JUnitPerfReportingConfig;
 import com.github.noconnor.junitperf.JUnitPerfTest;
@@ -9,31 +11,36 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.qianyuxiang.model.IdentityEntity;
+import org.qianyuxiang.repositry.IndicatorDao;
+import org.qianyuxiang.repositry.impl.FileIndicatorDaoImpl;
 
 import java.nio.file.Paths;
 import java.util.List;
 
-import static java.lang.System.getProperty;
-
+//@RunWith(SpringRunner.class)
+//@SpringBootTest
 @ExtendWith({JUnitPerfInterceptor.class})
-public class FileQueryServiceImplTest {
-    public QueryServiceImpl fileQueryServiceImpl;
+public class IndicatorServiceImplTest {
+    //@Resource
+    public IndicatorServiceImpl indicatorService;
 
     @JUnitPerfTestActiveConfig
     private final static JUnitPerfReportingConfig PERF_CONFIG = JUnitPerfReportingConfig.builder()
-            .reportGenerator(new HtmlReportGenerator(Paths.get("src","test","resources").toAbsolutePath() + "/build/reports/" + "success.html"))
+            .reportGenerator(new HtmlReportGenerator(Paths.get("src", "test", "resources").toAbsolutePath() + "/build/reports/" + "success.html"))
             .build();
 
     @BeforeEach
     public void setUp() {
-        fileQueryServiceImpl = new QueryServiceImpl();
+        indicatorService = new IndicatorServiceImpl();
+        IndicatorDao indicatorDao = new FileIndicatorDaoImpl();
+        indicatorService.setIndicatorDao(indicatorDao);
     }
 
     @Test
     @JUnitPerfTest(threads = 100, durationMs = 10_000)
     public void testQuery() {
         try {
-            List<IdentityEntity> result = fileQueryServiceImpl.query("2022", "ROE", true, Integer.valueOf(10));
+            List<IdentityEntity> result = indicatorService.query("2022", "ROE", true, 10);
             //System.out.println(JSON.toJSONString(result, JSONWriter.Feature.PrettyFormat));
 
             //result = fileQueryServiceImpl.query("2022", "ROE", false, Integer.valueOf(10));

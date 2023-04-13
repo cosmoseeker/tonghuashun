@@ -3,12 +3,13 @@ package org.qianyuxiang.service;
 
 import org.qianyuxiang.model.IdentityEntity;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 /**
  * 指标查询服务
  */
-public interface QueryService {
+public interface IndicatorService {
     /**
      * @param volume 期数
      * @param indicator 指标
@@ -17,4 +18,5 @@ public interface QueryService {
      * @return 指标列表
      */
     List<IdentityEntity> query(String volume, String indicator, boolean ascOrder, Integer limit);
+    boolean update(String volume, String indicator, String identity, BigDecimal value);
 }
